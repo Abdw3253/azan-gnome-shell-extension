@@ -50,9 +50,15 @@ class Azan extends PanelMenu.Button {
 
     this._prayTimes = new PrayTimes.PrayTimes('MWL');
 
-
-    this._dayNames = new Array("Ahad", "Ithnin", "Thulatha", "Arbiaa", "Khamees", "Jomuah", "Issabt");
-    this._monthNames = new Array("Muharram", "Safar", "Rabi'ul Awwal", "Rabi'ul Akhir",
+    // Arabic day names
+    this._dayNames = new Array("الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت");
+    this._dayNamesEnglish = new Array("Ahad", "Ithnin", "Thulatha", "Arbiaa", "Khamees", "Jomuah", "Issabt");
+    
+    // Arabic month names  
+    this._monthNames = new Array("محرم", "صفر", "ربيع الأول", "ربيع الآخر",
+                                 "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان",
+                                 "رمضان", "شوال", "ذو القعدة", "ذو الحجة");
+    this._monthNamesEnglish = new Array("Muharram", "Safar", "Rabi'ul Awwal", "Rabi'ul Akhir",
                                  "Jumadal Ula", "Jumadal Akhira", "Rajab", "Sha'ban",
                                  "Ramadhan", "Shawwal", "Dhul Qa'ada", "Dhul Hijja");
 
@@ -93,7 +99,7 @@ class Azan extends PanelMenu.Button {
         let prayerName = this._timeNames[prayerId];
 
         let prayMenuItem = new PopupMenu.PopupMenuItem(_(prayerName), {
-            reactive: false, hover: false, activate: false
+            reactive: false, hover: false, activate: false, style_class: 'azan-prayer-item'
         });
 
         let bin = new St.Bin({x_expand: true,x_align: Clutter.ActorAlign.END});
@@ -109,24 +115,6 @@ class Azan extends PanelMenu.Button {
     };
 
     this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-//	making mordernize
-		this.prefs_s = new PopupMenu.PopupBaseMenuItem ({ reactive: false, can_focus: false});
-		let l = new St.Label ({text: ' '});
-    l.x_expand = true;
-    this.prefs_s.actor.add(l);
-    this.prefs_b = new St.Button ({ child: new St.Icon ({ icon_name: 'preferences-system-symbolic', icon_size: 30 }), style_class: 'prefs_s_action'});
-    
-    this.prefs_b.connect ('clicked', () => {
-      ExtensionUtils.openPrefs()
-    });
-    
-    this.prefs_s.actor.add(this.prefs_b);
-    l = new St.Label ({text: ' '});
-    l.x_expand = true;
-    this.prefs_s.actor.add(l);
-    
-    this.menu.addMenuItem(this.prefs_s);
 
     this._updateLabelPeriodic();
     this._updatePrayerVisibility();
@@ -364,6 +352,15 @@ class Azan extends PanelMenu.Button {
           }
       };
 
+      // Highlight the next prayer
+      for (let prayerId in this._prayItems) {
+          if (prayerId === nearestPrayerId) {
+              this._prayItems[prayerId].menuItem.actor.style_class = 'azan-next-prayer';
+          } else {
+              this._prayItems[prayerId].menuItem.actor.style_class = 'azan-prayer-item';
+          }
+      }
+
 
       let hijriDate = HijriCalendarKuwaiti.KuwaitiCalendar(this._opt_hijriDateAdjustment);
 
@@ -406,7 +403,7 @@ class Azan extends PanelMenu.Button {
 	}
 
 		_formatHijriDate(hijriDate) {
-      return this._dayNames[hijriDate[4]] + ", " + hijriDate[5] + " " + this._monthNames[hijriDate[6]] + " " + hijriDate[7];
+      return this._dayNames[hijriDate[4]] + "، " + hijriDate[5] + " " + this._monthNames[hijriDate[6]] + " " + hijriDate[7];
   	}
   
     stop() {

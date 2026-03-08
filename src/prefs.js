@@ -18,7 +18,9 @@ const PagePrefsGrid = new GObject.Class({
     _init: function(params) {
         this.parent(params);
         this._settings = Convenience.getSettings();
-        this.margin = this.row_spacing = this.column_spacing = 10;
+        this.margin = 5;
+        this.row_spacing = 8;
+        this.column_spacing = 8;
         this._rownum = 0;
     },
 
@@ -51,7 +53,8 @@ const PagePrefsGrid = new GObject.Class({
 
     add_boolean: function(text, key, callback) {
         let item = new Gtk.Switch({
-            active: this._settings.get_boolean(key)
+            active: this._settings.get_boolean(key),
+            hexpand: false
         });
 
         if (callback) {
@@ -63,7 +66,9 @@ const PagePrefsGrid = new GObject.Class({
     },
 
     add_combo: function(text, key, list, type) {
-        let item = new Gtk.ComboBoxText();
+        let item = new Gtk.ComboBoxText({
+            hexpand: false
+        });
 
         for(let i = 0; i < list.length; i++) {
             let title = list[i].title.trim();
@@ -229,10 +234,10 @@ const AzanPrefsWidget = new GObject.Class({
         let stack_switcher
         if (IS_3_XX_SHELL_VERSION){
             stack_switcher = new Gtk.StackSwitcher({
-            margin_left: 5,
-            margin_top: 5,
-            margin_bottom: 5,
-            margin_right: 5,
+            margin_left: 3,
+            margin_top: 3,
+            margin_bottom: 3,
+            margin_right: 3,
             stack: stack
         	});
         	this._init_stack(stack);
@@ -240,10 +245,10 @@ const AzanPrefsWidget = new GObject.Class({
         	this.add(stack);
         } else {
         	stack_switcher = new Gtk.StackSwitcher({
-        	margin_start: 5,
-        	margin_end: 5,
-        	margin_top: 5,
-        	margin_bottom: 5,
+        	margin_start: 3,
+        	margin_end: 3,
+        	margin_top: 3,
+        	margin_bottom: 3,
             stack: stack
         	});
         	this._init_stack(stack);
@@ -259,9 +264,9 @@ const AzanPrefsWidget = new GObject.Class({
         	calculation_page = new PagePrefsGrid();
         } else {
         	calculation_page = new PagePrefsGrid();
-        	calculation_page.set_margin_top(10);
-        	calculation_page.set_margin_start(5);
-        	calculation_page.set_margin_end(5);
+        	calculation_page.set_margin_top(5);
+        	calculation_page.set_margin_start(3);
+        	calculation_page.set_margin_end(3);
 		}
         calculation_page.add_row('Please note that all prayer calculations by their nature can only be a guideline and are not definitive.', false, true);
         
@@ -283,9 +288,9 @@ const AzanPrefsWidget = new GObject.Class({
         	location_page = new PagePrefsGrid();
         } else {
         	location_page = new PagePrefsGrid();
-        	location_page.set_margin_top(10);
-        	location_page.set_margin_start(5);
-        	location_page.set_margin_end(5);
+        	location_page.set_margin_top(5);
+        	location_page.set_margin_start(3);
+        	location_page.set_margin_end(3);
 		}
 
         this.latitude_box = location_page.add_spin('Latitude', PrefsKeys.LATITUDE, {
@@ -355,9 +360,9 @@ const AzanPrefsWidget = new GObject.Class({
         	display_page = new PagePrefsGrid();
         } else {
         	display_page = new PagePrefsGrid();
-        	display_page.set_margin_top(10);
-        	display_page.set_margin_start(5);
-        	display_page.set_margin_end(5);
+        	display_page.set_margin_top(5);
+        	display_page.set_margin_start(3);
+        	display_page.set_margin_end(3);
 		}
 
         this.time_format_12 = display_page.add_boolean('AM/PM time format', PrefsKeys.TIME_FORMAT_12);
