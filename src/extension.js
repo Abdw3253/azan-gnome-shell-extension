@@ -499,9 +499,16 @@ class Azan extends PanelMenu.Button {
           }
       };
 
-      // Highlight the next prayer
+      // Get the prayer one before the next prayer
+      const prayerOrder = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+      let highlightedPrayerId = nearestPrayerId;
+      let nextIndex = prayerOrder.indexOf(nearestPrayerId);
+      if (nextIndex > 0) {
+          highlightedPrayerId = prayerOrder[nextIndex - 1];
+      }
+
       for (let prayerId in this._prayItems) {
-          if (prayerId === nearestPrayerId) {
+          if (prayerId === highlightedPrayerId) {
               this._prayItems[prayerId].menuItem.actor.style_class = 'azan-next-prayer';
           } else {
               this._prayItems[prayerId].menuItem.actor.style_class = 'azan-prayer-item';
