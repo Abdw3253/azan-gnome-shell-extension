@@ -54,5 +54,11 @@
       <default>"1"</default>
       <summary>Which times to show</summary>
     </key>
+
+    <key type="s" name="language">
+      <default>"english"</default>
+      <summary>Language</summary>
+      <description>Language for prayer time names (english or arabic)</description>
+    </key>
   </schema>
 </schemalist>

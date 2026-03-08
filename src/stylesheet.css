@@ -2,13 +2,13 @@
   font-family: Lotus, Arial, sans-serif;
   font-size: 14px;
   font-weight: bold;
-	direction: rtl;
+  padding: 6px 10px;
   color: #ffffff;
 }
 
 .azan-prayer-item {
   color: #ffffff;
-  padding: 6px 8px;
+  padding: 6px 10px;
 }
 
 .azan-next-prayer {
@@ -17,4 +17,17 @@
   border-radius: 4px;
   padding: 6px 8px;
   font-weight: bold;
+}
+
+.azan-prayer-name {
+  min-width: 110px;
+}
+
+.azan-prayer-time-bin {
+  min-width: 84px;
+}
+
+.azan-prayer-time {
+  min-width: 84px;
+  text-align: right;
 }

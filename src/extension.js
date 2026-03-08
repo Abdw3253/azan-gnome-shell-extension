@@ -41,6 +41,7 @@ class Azan extends PanelMenu.Button {
     this._opt_timeformat12 = false;
     this._opt_concise_list = null;
     this._opt_hijriDateAdjustment = null;
+    this._opt_language = 'english';
 
     this._settings = Convenience.getSettings();
     this._bindSettings();
@@ -52,7 +53,7 @@ class Azan extends PanelMenu.Button {
 
     // Arabic day names
     this._dayNames = new Array("الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت");
-    this._dayNamesEnglish = new Array("Ahad", "Ithnin", "Thulatha", "Arbiaa", "Khamees", "Jomuah", "Issabt");
+    this._dayNamesEnglish = new Array("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday");
     
     // Arabic month names  
     this._monthNames = new Array("محرم", "صفر", "ربيع الأول", "ربيع الآخر",
@@ -73,12 +74,23 @@ class Azan extends PanelMenu.Button {
         midnight: 'Midnight'
     };
 
+    this._timeNamesArabic = {
+        fajr: 'الفجر',
+        sunrise: 'الشروق',
+        dhuhr: 'الظهر',
+        asr: 'العصر',
+        sunset: 'الغروب',
+        maghrib: 'المغرب',
+        isha: 'العشاء',
+        midnight: 'منتصف الليل'
+    };
+
     this._timeConciseLevels = {
       fajr: 1,
       sunrise: 0,
       dhuhr: 1,
       asr: 1,
-      sunset: 0,
+      sunset: -1,
       maghrib: 1,
       isha: 1,
       midnight: 0
@@ -102,22 +114,30 @@ class Azan extends PanelMenu.Button {
             reactive: false, hover: false, activate: false, style_class: 'azan-prayer-item'
         });
 
-        let bin = new St.Bin({x_expand: true,x_align: Clutter.ActorAlign.END});
+        prayMenuItem.label.add_style_class_name('azan-prayer-name');
+        prayMenuItem.label.set_x_expand(true);
 
-        let prayLabel = new St.Label();
+        let bin = new St.Bin({x_expand: true,x_align: Clutter.ActorAlign.END});
+        bin.add_style_class_name('azan-prayer-time-bin');
+
+        let prayLabel = new St.Label({
+            style_class: 'azan-prayer-time'
+        });
         bin.add_actor(prayLabel);
 
         prayMenuItem.actor.add_actor(bin);
 
         this.menu.addMenuItem(prayMenuItem);
 
-        this._prayItems[prayerId] = { menuItem: prayMenuItem, label: prayLabel };
+        this._prayItems[prayerId] = { menuItem: prayMenuItem, label: prayLabel, labelWidget: prayMenuItem.label, timeBin: bin };
     };
 
     this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
+    this._applyLanguageLayout();
     this._updateLabelPeriodic();
     this._updatePrayerVisibility();
+    this._updatePrayerMenuLabels();
 
     this._permStore = new PermissionStore.PermissionStore((proxy, error) => {
         if (error) {
@@ -212,6 +232,7 @@ class Azan extends PanelMenu.Button {
     this._opt_timezone = this._settings.get_string(PrefsKeys.TIMEZONE);
     this._opt_concise_list = this._settings.get_string(PrefsKeys.CONCISE_LIST);
     this._opt_hijriDateAdjustment = this._settings.get_double(PrefsKeys.HIJRI_DATE_ADJUSTMENT);
+    this._opt_language = this._settings.get_string(PrefsKeys.LANGUAGE);
   }  
   _bindSettings() {
     this._settings.connect('changed::' + PrefsKeys.AUTO_LOCATION, (settings, key) => {
@@ -263,11 +284,52 @@ class Azan extends PanelMenu.Button {
 
         this._updateLabel();
     });
+
+    this._settings.connect('changed::' + PrefsKeys.LANGUAGE, (settings, key) => {
+        this._opt_language = settings.get_string(key);
+                this._applyLanguageLayout();
+        this._updatePrayerMenuLabels();
+        this._updateLabel();
+    });
   }
+
+    _isArabic() {
+        return this._opt_language === 'arabic';
+    }
+
+    _applyLanguageLayout() {
+        let rtl = this._isArabic();
+        let directionStyle = rtl ? 'direction: rtl;' : 'direction: ltr;';
+
+        this._dateMenuItem.actor.set_style(directionStyle);
+
+        for (let prayerId in this._prayItems) {
+            let prayerItem = this._prayItems[prayerId];
+            prayerItem.menuItem.actor.set_style(directionStyle);
+
+            // Keep a stable gap between name/time and swap visual anchoring for RTL.
+            if (rtl) {
+                prayerItem.timeBin.set_style('margin-right: 14px; margin-left: 0px;');
+            } else {
+                prayerItem.timeBin.set_style('margin-left: 14px; margin-right: 0px;');
+            }
+
+            prayerItem.labelWidget.x_align = rtl ? Clutter.ActorAlign.END : Clutter.ActorAlign.START;
+            prayerItem.label.x_align = rtl ? Clutter.ActorAlign.START : Clutter.ActorAlign.END;
+            prayerItem.timeBin.x_align = rtl ? Clutter.ActorAlign.START : Clutter.ActorAlign.END;
+        }
+    }
 
   _updatePrayerVisibility() {
     for (let prayerId in this._timeNames) {
       this._prayItems[prayerId].menuItem.actor.visible = this._isVisiblePrayer(prayerId);
+    }
+  }
+
+  _updatePrayerMenuLabels() {
+    for (let prayerId in this._timeNames) {
+      let prayerName = this._getPrayerName(prayerId);
+      this._prayItems[prayerId].labelWidget.text = prayerName;
     }
   }
 
@@ -316,7 +378,6 @@ class Azan extends PanelMenu.Button {
       let isTimeForPraying = false;
       for (let prayerId in this._timeNames) {
 
-          let prayerName = this._timeNames[prayerId];
           let prayerTime = timesStr[prayerId];
 
           this._prayItems[prayerId].label.text = prayerTime;
@@ -369,14 +430,14 @@ class Azan extends PanelMenu.Button {
       this._dateMenuItem.label.text = outputIslamicDate;
       
       if ( (minDiffMinutes === 15) || (minDiffMinutes === 10) || (minDiffMinutes === 5) ) {
-         Main.notify(_(minDiffMinutes + " minutes remaining until " + this._timeNames[nearestPrayerId]) + " prayer.", _("Prayer time : " + timesStr[nearestPrayerId]));
+         Main.notify(_(minDiffMinutes + " minutes remaining until " + this._getPrayerName(nearestPrayerId)) + " prayer.", _("Prayer time : " + timesStr[nearestPrayerId]));
       }
           
       if (isTimeForPraying) {
-          Main.notify(_("It's time for the " + this._timeNames[nearestPrayerId]) + " prayer.", _("Prayer time : " + timesStr[nearestPrayerId]));
-          this.indicatorText.set_text(_("It's time for " + this._timeNames[nearestPrayerId]));
+          Main.notify(_("It's time for the " + this._getPrayerName(nearestPrayerId)) + " prayer.", _("Prayer time : " + timesStr[nearestPrayerId]));
+          this.indicatorText.set_text(_("It's time for " + this._getPrayerName(nearestPrayerId)));
       } else {
-          this.indicatorText.set_text(this._timeNames[nearestPrayerId] + ' -' + this._formatRemainingTimeFromMinutes(minDiffMinutes));
+          this.indicatorText.set_text(this._getPrayerName(nearestPrayerId) + ' -' + this._formatRemainingTimeFromMinutes(minDiffMinutes));
       }
   }
 
@@ -402,9 +463,20 @@ class Azan extends PanelMenu.Button {
       return hoursStr + ":" + minutesStr;
 	}
 
-		_formatHijriDate(hijriDate) {
-      return this._dayNames[hijriDate[4]] + "، " + hijriDate[5] + " " + this._monthNames[hijriDate[6]] + " " + hijriDate[7];
+    	_formatHijriDate(hijriDate) {
+        if (this._isArabic()) {
+          return this._dayNames[hijriDate[4]] + "، " + hijriDate[5] + " " + this._monthNames[hijriDate[6]] + " " + hijriDate[7];
+        }
+
+        return this._dayNamesEnglish[hijriDate[4]] + ", " + hijriDate[5] + " " + this._monthNamesEnglish[hijriDate[6]] + " " + hijriDate[7] + " AH";
   	}
+  
+    _getPrayerName(prayerId) {
+        if (this._opt_language === 'arabic') {
+            return this._timeNamesArabic[prayerId];
+        }
+        return this._timeNames[prayerId];
+    }
   
     stop() {
 

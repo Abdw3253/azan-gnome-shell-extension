@@ -10,15 +10,18 @@ const Config = imports.misc.config;
 
 const IS_3_XX_SHELL_VERSION = Config.PACKAGE_VERSION.startsWith("3");
 
-const PagePrefsGrid = new GObject.Class({
-    Name: 'Page.Prefs.Grid',
-    GTypeName: 'PagePrefsGrid',
+const PrefsGrid = new GObject.Class({
+    Name: 'Prefs.Grid',
+    GTypeName: 'PrefsGrid',
     Extends: Gtk.Grid,
 
     _init: function(params) {
         this.parent(params);
         this._settings = Convenience.getSettings();
-        this.margin = 5;
+        this.margin_start = 5;
+        this.margin_end = 12;
+        this.margin_top = 10;
+        this.margin_bottom = 10;
         this.row_spacing = 8;
         this.column_spacing = 8;
         this._rownum = 0;
@@ -54,7 +57,8 @@ const PagePrefsGrid = new GObject.Class({
     add_boolean: function(text, key, callback) {
         let item = new Gtk.Switch({
             active: this._settings.get_boolean(key),
-            hexpand: false
+            hexpand: false,
+            halign: Gtk.Align.END
         });
 
         if (callback) {
@@ -67,7 +71,8 @@ const PagePrefsGrid = new GObject.Class({
 
     add_combo: function(text, key, list, type) {
         let item = new Gtk.ComboBoxText({
-            hexpand: false
+            hexpand: false,
+            halign: Gtk.Align.END
         });
 
         for(let i = 0; i < list.length; i++) {
@@ -107,7 +112,8 @@ const PagePrefsGrid = new GObject.Class({
         adjustment_properties = Params.parse(adjustment_properties, {
             lower: 0,
             upper: 100,
-            step_increment: 100
+            step_increment: 1,
+            page_increment: 10
         });
         let adjustment = new Gtk.Adjustment(adjustment_properties);
 
@@ -142,27 +148,38 @@ const PagePrefsGrid = new GObject.Class({
             label: text,
             hexpand: true,
             halign: Gtk.Align.START
-        	});
-        	label.set_line_wrap(wrap || false);
-        
+            });
+            label.set_line_wrap(wrap || false);
+
         } else {
-        	label= new Gtk.Label({
+            label = new Gtk.Label({
             label: text,
             hexpand: true,
             halign: Gtk.Align.START
-        	});
+            });
         }
 
         if (widget) {
-          this.attach(label, 0, this._rownum, 1, 1); // col, row, colspan, rowspan
+          this.attach(label, 0, this._rownum, 1, 1);
           this.attach(widget, 1, this._rownum, 1, 1);
         } else {
-          this.attach(label, 0, this._rownum, 2, 1); // col, row, colspan, rowspan
+          this.attach(label, 0, this._rownum, 2, 1);
         }
         this._rownum++;
         if (widget) {
           return widget;
         }
+    },
+
+    add_separator: function() {
+        let separator = new Gtk.Separator({
+            orientation: Gtk.Orientation.HORIZONTAL,
+            hexpand: true,
+            margin_top: 5,
+            margin_bottom: 5
+        });
+        this.attach(separator, 0, this._rownum, 2, 1);
+        this._rownum++;
     },
 
     add_item: function(widget, col, colspan, rowspan) {
@@ -224,97 +241,70 @@ const AzanPrefsWidget = new GObject.Class({
     _init: function(params) {
         this.parent(params);
         this.set_orientation(Gtk.Orientation.VERTICAL);
+        this.set_size_request(620, 640);
         this._settings = Convenience.getSettings();
 
-        let stack = new Gtk.Stack({
-            transition_type: Gtk.StackTransitionType.SLIDE_LEFT_RIGHT,
-            transition_duration: 500
+        let scrolled = new Gtk.ScrolledWindow({
+            hexpand: true,
+            vexpand: true,
+            hscrollbar_policy: Gtk.PolicyType.NEVER,
+            vscrollbar_policy: Gtk.PolicyType.AUTOMATIC,
+            margin_start: 10,
+            margin_end: 10,
+            margin_top: 8,
+            margin_bottom: 8
         });
+        if (scrolled.set_overlay_scrolling)
+            scrolled.set_overlay_scrolling(false);
 
-        let stack_switcher
-        if (IS_3_XX_SHELL_VERSION){
-            stack_switcher = new Gtk.StackSwitcher({
-            margin_left: 3,
-            margin_top: 3,
-            margin_bottom: 3,
-            margin_right: 3,
-            stack: stack
-        	});
-        	this._init_stack(stack);
-        	this.add(stack_switcher);
-        	this.add(stack);
+        let maingrid = new PrefsGrid();
+        if (scrolled.set_child) {
+            scrolled.set_child(maingrid);
         } else {
-        	stack_switcher = new Gtk.StackSwitcher({
-        	margin_start: 3,
-        	margin_end: 3,
-        	margin_top: 3,
-        	margin_bottom: 3,
-            stack: stack
-        	});
-        	this._init_stack(stack);
-        	this.append(stack_switcher);
-        	this.append(stack);
+            scrolled.add(maingrid);
         }
-    },
 
-    _get_tab_config: function() {
+        // Calculation Settings
+        maingrid.add_row('Please note that all prayer calculations by their nature can only be a guideline and are not definitive.', false, true);
+        maingrid.add_separator();
 
-        let calculation_page;
-        if (IS_3_XX_SHELL_VERSION) {
-        	calculation_page = new PagePrefsGrid();
-        } else {
-        	calculation_page = new PagePrefsGrid();
-        	calculation_page.set_margin_top(5);
-        	calculation_page.set_margin_start(3);
-        	calculation_page.set_margin_end(3);
-		}
-        calculation_page.add_row('Please note that all prayer calculations by their nature can only be a guideline and are not definitive.', false, true);
-        
-        calculation_page.add_combo('Calculation method',
-          PrefsKeys.CALCULATION_METHOD,
-          Object
-            .entries(PrayTimes.getMethods())
-            .map(([value,{name}]) => ({value, title: name})),
-          'string'
+        maingrid.add_combo('Calculation method',
+            PrefsKeys.CALCULATION_METHOD,
+            Object
+                .entries(PrayTimes.getMethods())
+                .map(([value,{name}]) => ({value, title: name})),
+            'string'
         );
 
-        calculation_page.add_combo('Madhab', PrefsKeys.MADHAB, [
+        maingrid.add_combo('Madhab', PrefsKeys.MADHAB, [
             {'title': 'Standard (Shafii, Maliki, Hanbali, Dhahiri)', 'value': 'Standard'},
             {'title': 'Hanafi', 'value': 'Hanafi'}
-          ], 'string');
+        ], 'string');
 
-        let location_page;
-        if (IS_3_XX_SHELL_VERSION){
-        	location_page = new PagePrefsGrid();
-        } else {
-        	location_page = new PagePrefsGrid();
-        	location_page.set_margin_top(5);
-        	location_page.set_margin_start(3);
-        	location_page.set_margin_end(3);
-		}
+        maingrid.add_separator();
 
-        this.latitude_box = location_page.add_spin('Latitude', PrefsKeys.LATITUDE, {
+        // Location Settings
+        this.latitude_box = maingrid.add_spin('Latitude', PrefsKeys.LATITUDE, {
             lower: -90.0000,
             upper: 90.0000,
             step_increment: 0.0001
         });
 
-        this.longitude_box = location_page.add_spin('Longitude', PrefsKeys.LONGITUDE, {
+        this.longitude_box = maingrid.add_spin('Longitude', PrefsKeys.LONGITUDE, {
             lower: -180.0000,
             upper: 180.0000,
             step_increment: 0.0001
         });
 
-        let updateLocationState = (entry,state) => {
-          this.latitude_box.set_sensitive(!state);
-          this.longitude_box.set_sensitive(!state);
+        let updateLocationState = (entry, state) => {
+            this.latitude_box.set_sensitive(!state);
+            this.longitude_box.set_sensitive(!state);
         }
 
-        this.auto_location = location_page.add_boolean('Automatic location', PrefsKeys.AUTO_LOCATION, updateLocationState);
-
+        this.auto_location = maingrid.add_boolean('Automatic location', PrefsKeys.AUTO_LOCATION, updateLocationState);
         this.auto_location.connect('state-set', updateLocationState);
 
-        location_page.add_combo('Timezone', PrefsKeys.TIMEZONE, [
+        maingrid.add_combo('Timezone', PrefsKeys.TIMEZONE, [
             {'title': 'Auto', 'value': 'auto'},
             {'title': 'GMT -12:00', 'value': '-12'},
             {'title': 'GMT -11:00', 'value': '-11'},
@@ -336,7 +326,7 @@ const AzanPrefsWidget = new GObject.Class({
             {'title': 'GMT +03:00', 'value': '3'},
             {'title': 'GMT +03:30', 'value': '3.5'},
             {'title': 'GMT +04:00', 'value': '4'},
-            {'title': 'GMT +04:30', 'value': '4'},
+            {'title': 'GMT +04:30', 'value': '4.5'},
             {'title': 'GMT +05:00', 'value': '5'},
             {'title': 'GMT +05:30', 'value': '5.5'},
             {'title': 'GMT +05:45', 'value': '5.75'},
@@ -355,55 +345,38 @@ const AzanPrefsWidget = new GObject.Class({
             {'title': 'GMT +14:00', 'value': '14'}
         ], 'string');
 
-        let display_page;
-        if (IS_3_XX_SHELL_VERSION){
-        	display_page = new PagePrefsGrid();
-        } else {
-        	display_page = new PagePrefsGrid();
-        	display_page.set_margin_top(5);
-        	display_page.set_margin_start(3);
-        	display_page.set_margin_end(3);
-		}
+        maingrid.add_separator();
 
-        this.time_format_12 = display_page.add_boolean('AM/PM time format', PrefsKeys.TIME_FORMAT_12);
+        // Display Settings
+        maingrid.add_boolean('AM/PM time format', PrefsKeys.TIME_FORMAT_12);
 
-        display_page.add_combo('Which times?', PrefsKeys.CONCISE_LIST, [
-          {'title': 'All times', 'value': '0'},
-          {'title': 'Concise', 'value': '1'}
+        maingrid.add_combo('Which times?', PrefsKeys.CONCISE_LIST, [
+            {'title': 'All times', 'value': '0'},
+            {'title': 'Concise', 'value': '1'}
         ], 'string');
 
-        calculation_page.add_range('Date adjustment', PrefsKeys.HIJRI_DATE_ADJUSTMENT, {
-            min: -2,
-            max: 2,
-            step: 1,
-            mark_position: 0,
-            add_mark: true,
-            size: 200,
-            draw_value: true
+        maingrid.add_combo('Language', PrefsKeys.LANGUAGE, [
+            {'title': 'English', 'value': 'english'},
+            {'title': 'العربية (Arabic)', 'value': 'arabic'}
+        ], 'string');
+
+        maingrid.add_spin('Hijri date adjustment', PrefsKeys.HIJRI_DATE_ADJUSTMENT, {
+            lower: -5,
+            upper: 5,
+            step_increment: 1,
+            page_increment: 1
+        }, {
+            numeric: true,
+            digits: 0,
+            snap_to_ticks: true
         });
 
-        let pages = [
-          {
-            name: 'Calculation',
-            page: calculation_page
-          },
-          {
-            name: 'Your Location',
-            page: location_page
-          },
-          {
-            name: 'Display',
-            page: display_page
-          }
-        ];
-
-        return pages;
-    },
-
-    _init_stack: function(stack) {
-        let config = this._get_tab_config();
-        for (let index in config) {
-            stack.add_titled(config[index].page, config[index].name, config[index].name);
+        if (IS_3_XX_SHELL_VERSION) {
+            this.add(scrolled);
+            this.show_all();
+        } else {
+            this.append(scrolled);
+            this.show();
         }
     }
 });
@@ -414,11 +387,5 @@ function init() {
 
 function buildPrefsWidget() {
     let widget = new AzanPrefsWidget();
-    if (IS_3_XX_SHELL_VERSION){
-    	widget.show_all();
-    } else {
-    	widget.show();
-    }
-
     return widget;
 }
