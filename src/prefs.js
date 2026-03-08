@@ -134,6 +134,11 @@ const PrefsGrid = new GObject.Class({
             }
         });
 
+        // Disable scroll events to prevent accidental value changes
+        spin_button.connect('scroll-event', () => {
+            return true;
+        });
+
         this._settings.connect('change-event', (settings, key_set) => {
           spin_button.set_value(this._settings.get_double(key));
         });
