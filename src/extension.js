@@ -499,12 +499,15 @@ class Azan extends PanelMenu.Button {
           }
       };
 
-      // Get the prayer one before the next prayer
+      // Highlight the prayer one before the next prayer
       const prayerOrder = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
       let highlightedPrayerId = nearestPrayerId;
       let nextIndex = prayerOrder.indexOf(nearestPrayerId);
       if (nextIndex > 0) {
           highlightedPrayerId = prayerOrder[nextIndex - 1];
+      } else if (nextIndex === 0) {
+          // If next prayer is Fajr, highlight Isha (wrap around)
+          highlightedPrayerId = prayerOrder[prayerOrder.length - 1];
       }
 
       for (let prayerId in this._prayItems) {
@@ -574,6 +577,17 @@ class Azan extends PanelMenu.Button {
   	}
   
     _getPrayerName(prayerId) {
+        // Check if it's Friday and the prayer is Dhuhr
+        let today = new Date();
+        let isFriday = today.getDay() === 5;
+        
+        if (isFriday && prayerId === 'dhuhr') {
+            if (this._opt_language === 'arabic') {
+                return 'الجمعة';
+            }
+            return 'Jummah';
+        }
+        
         if (this._opt_language === 'arabic') {
             return this._timeNamesArabic[prayerId];
         }
