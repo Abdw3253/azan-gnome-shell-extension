@@ -31,7 +31,18 @@ Azan is an Islamic prayer times extension for Gnome Shell.
 - 07 : Added support for Gnome 3.36+
 - 10 : Bugfixes
 - 11 : MUI calculation method and addition of disclaimer
-- 12 : Add Arabic Support and improved UI design
+- 12 : Add Arabic Support, improved UI design and more
+### My Contribiution in Version 12
+- Full support for Arabic interface.
+- Fixed: hijri date setting was not working
+- Fixed: Stretched UI element in settings
+- Swapped Scrollboxes in settings with text inputs to obviate accidental changing of values
+- Changed the structure settings from tabs to one tab includes all settings for easier accebility
+- Imporved pop-up UI: 
+    - Removed the large settings button as it is used once at first only.
+    - Font color to white for better contrast 
+    - Highlight on current Prayer
+    - Added Icons for each prayer time
 
 ### Areas of Improvment 
 - Unequal margins (right and left) in pop-up menu
