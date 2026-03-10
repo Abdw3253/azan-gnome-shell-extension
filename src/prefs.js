@@ -281,7 +281,7 @@ const AzanPrefsWidget = new GObject.Class({
         }
 
         // Calculation Settings
-        maingrid.add_row('Please note that all prayer calculations by their nature can only be a guideline and are not definitive.', false, true);
+        maingrid.add_row('Please note that all prayer times are approximate and should be used only as guidelines.', false, true);
         maingrid.add_separator();
 
         maingrid.add_combo('Calculation method',

@@ -11,7 +11,7 @@
     <key type="s" name="madhab">
         <default>"Standard"</default>
         <summary>Madhab</summary>
-        <description>Madhab for calculating of Asr time</description>
+        <description>Madhab for calculating Asr time</description>
     </key>
 
     <key type="b" name="auto-location">
