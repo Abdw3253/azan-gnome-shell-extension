@@ -1,16 +1,19 @@
 بسم الله الرحمن الرحيم
-### Description
-Azan is an Islamic prayer times extension for Gnome Shell.
 
-![alt text](/.img/azan.png) 
+## Islamic Prayer Times (Azan)
 
-### Features
+Azan is an Islamic prayer times extension for GNOME Shell.
 
-- Display 5 prayer times
+![Azan extension screenshot](/.img/azan.png)
+
+## Features
+
+- Display the 5 daily prayer times
 - Optionally display Sunrise and Midnight times
 - Show remaining time until the next prayer
+- Click to reveal remaining time
 - Display the current date in Hijri calendar
-- Send notifications when it's prayer time
+- Send notifications when it is prayer time
 - Automatic location detection
 - Display times in 24-hour or 12-hour format
 - Adjust the Hijri date
