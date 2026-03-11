@@ -111,7 +111,7 @@ class Azan extends PanelMenu.Button {
         let prayerName = this._timeNames[prayerId];
 
         let prayMenuItem = new PopupMenu.PopupMenuItem(_(prayerName), {
-            reactive: false, hover: false, activate: false, style_class: 'azan-prayer-item'
+            reactive: true, hover: true, activate: false, style_class: 'azan-prayer-item azan-clickable-item'
         });
 
         prayMenuItem.label.add_style_class_name('azan-prayer-name');
@@ -163,19 +163,43 @@ class Azan extends PanelMenu.Button {
             });
         }
 
-        let bin = new St.Bin({x_expand: true,x_align: Clutter.ActorAlign.END});
+        let bin = new St.Bin({x_expand: true, x_align: Clutter.ActorAlign.END});
         bin.add_style_class_name('azan-prayer-time-bin');
 
+        // Inner card that acts as a fixed-width flip card
+        let timeCard = new St.BoxLayout({ vertical: false, x_expand: true });
+        timeCard.add_style_class_name('azan-time-card');
+
         let prayLabel = new St.Label({
-            style_class: 'azan-prayer-time'
+            style_class: 'azan-prayer-time',
+            x_expand: true
         });
-        bin.add_actor(prayLabel);
+        timeCard.add_actor(prayLabel);
+        bin.add_actor(timeCard);
 
         prayMenuItem.actor.add_actor(bin);
 
         this.menu.addMenuItem(prayMenuItem);
 
-        this._prayItems[prayerId] = { menuItem: prayMenuItem, label: prayLabel, labelWidget: prayMenuItem.label, timeBin: bin, icon: icon };
+        this._prayItems[prayerId] = { 
+            menuItem: prayMenuItem, 
+            label: prayLabel, 
+            labelWidget: prayMenuItem.label, 
+            timeBin: bin, 
+            timeCard: timeCard,
+            icon: icon,
+            showingRemaining: false,
+            timeoutId: null,
+            originalTime: '',
+            remainingTime: '',
+            remainingMinutes: 0
+        };
+
+        // Handle click without closing popup menu.
+        prayMenuItem.actor.connect('button-press-event', () => {
+            this._togglePrayerItemDisplay(prayerId);
+            return Clutter.EVENT_STOP;
+        });
     };
 
     this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -184,6 +208,12 @@ class Azan extends PanelMenu.Button {
     this._updateLabelPeriodic();
     this._updatePrayerVisibility();
     this._updatePrayerMenuLabels();
+
+    // Always reset to original prayer times when popup closes.
+    this.menu.connect('open-state-changed', (menu, isOpen) => {
+        if (!isOpen)
+            this._resetPrayerItemsDisplay();
+    });
 
     this._permStore = new PermissionStore.PermissionStore((proxy, error) => {
         if (error) {
@@ -384,8 +414,9 @@ class Azan extends PanelMenu.Button {
                     container.add_actor(prayerItem.icon);
                     prayerItem.icon.set_style('margin-left: 6px; margin-right: 0px;');
                 }
-                prayerItem.timeBin.set_style('margin-right: 20px; margin-left: 0px; padding-left: 0px; min-width: 0px;');
-                prayerItem.label.set_style('min-width: 0px; text-align: left;');
+                // Keep Arabic column widths aligned with the compact English popup width.
+                prayerItem.timeBin.set_style('margin-right: 1px; margin-left: 0px; min-width: 84px; max-width: 84px;');
+                prayerItem.label.set_style('min-width: 84px; text-align: left;');
             } else {
                 // English: icon then text then time.
                 if (prayerItem.icon) {
@@ -397,7 +428,7 @@ class Azan extends PanelMenu.Button {
                 prayerItem.timeBin.set_style('margin-left: 1px; margin-right: 0px; min-width: 84px;');
                 prayerItem.label.set_style('min-width: 84px; text-align: right;');
             }
-
+            
             prayerItem.labelWidget.set_style(rtl ? 'text-align: right;' : 'text-align: left;');
             prayerItem.labelWidget.x_align = rtl ? Clutter.ActorAlign.END : Clutter.ActorAlign.START;
             prayerItem.label.x_align = rtl ? Clutter.ActorAlign.START : Clutter.ActorAlign.END;
@@ -462,11 +493,42 @@ class Azan extends PanelMenu.Button {
       let nearestPrayerId;
       let minDiffMinutes = Number.MAX_VALUE;
       let isTimeForPraying = false;
+      let remainingTimesForAll = {};
+      
       for (let prayerId in this._timeNames) {
 
           let prayerTime = timesStr[prayerId];
+          let prayerItem = this._prayItems[prayerId];
 
-          this._prayItems[prayerId].label.text = this._formatDisplayedTime(prayerTime);
+          prayerItem.originalTime = this._formatDisplayedTime(prayerTime);
+          if (!prayerItem.showingRemaining)
+              prayerItem.label.text = prayerItem.originalTime;
+
+          // Calculate remaining time for ALL prayers (for hover animation)
+          let prayerSeconds = this._calculateSecondsFromHour(timesFloat[prayerId]);
+          let diffSeconds = prayerSeconds - currentSeconds;
+
+          if (prayerId === 'fajr' && currentSeconds > this._calculateSecondsFromHour(timesFloat['isha'])) {
+              prayerSeconds = this._calculateSecondsFromHour(timesFloat['fajr']) + (24 * 60 * 60);
+              diffSeconds = prayerSeconds - currentSeconds;
+          }
+
+          // For passed events, show remaining time until tomorrow's same event.
+          if (diffSeconds <= 0)
+              diffSeconds += 24 * 60 * 60;
+
+          let diffMinutes = ~~(diffSeconds / 60);
+          remainingTimesForAll[prayerId] = diffMinutes;
+
+          // Store remaining time for click-to-show feature
+          prayerItem.remainingMinutes = remainingTimesForAll[prayerId];
+          prayerItem.remainingTime = this._formatRemainingTimeFromMinutes(remainingTimesForAll[prayerId]);
+
+          if (prayerItem.showingRemaining) {
+              prayerItem.label.text = this._formatRemainingTimeLabel(prayerItem.remainingTime);
+              this._applyRemainingTimeTextLayout(prayerItem);
+              this._applyRemainingTimeColor(prayerItem);
+          }
 
           if (this._isPrayerTime(prayerId)) {
 
@@ -510,11 +572,15 @@ class Azan extends PanelMenu.Button {
           highlightedPrayerId = prayerOrder[prayerOrder.length - 1];
       }
 
+      let currentPrayerHighlightClass = minDiffMinutes < 30
+          ? 'azan-current-prayer-red'
+          : 'azan-current-prayer-green';
+
       for (let prayerId in this._prayItems) {
           if (prayerId === highlightedPrayerId) {
-              this._prayItems[prayerId].menuItem.actor.style_class = 'azan-next-prayer';
+              this._prayItems[prayerId].menuItem.actor.style_class = currentPrayerHighlightClass + ' azan-clickable-item';
           } else {
-              this._prayItems[prayerId].menuItem.actor.style_class = 'azan-prayer-item';
+              this._prayItems[prayerId].menuItem.actor.style_class = 'azan-prayer-item azan-clickable-item';
           }
       }
 
@@ -602,12 +668,121 @@ class Azan extends PanelMenu.Button {
             .replace(/\bAM\b/gi, 'ص')
             .replace(/\bPM\b/gi, 'م');
     }
+
+    _togglePrayerItemDisplay(prayerId) {
+        let prayerItem = this._prayItems[prayerId];
+        
+        // Clear any existing timeout
+        if (prayerItem.timeoutId) {
+            Mainloop.source_remove(prayerItem.timeoutId);
+            prayerItem.timeoutId = null;
+        }
+
+        if (prayerItem.showingRemaining) {
+            prayerItem.label.text = prayerItem.originalTime;
+            this._restorePrayerTimeTextLayout(prayerItem);
+            this._clearRemainingTimeStyle(prayerItem);
+            prayerItem.showingRemaining = false;
+        } else {
+            prayerItem.label.text = this._formatRemainingTimeLabel(prayerItem.remainingTime);
+            this._applyRemainingTimeTextLayout(prayerItem);
+            this._applyRemainingTimeColor(prayerItem);
+            prayerItem.showingRemaining = true;
+            
+            // Auto-revert after 5 seconds
+            prayerItem.timeoutId = Mainloop.timeout_add_seconds(5, () => {
+                prayerItem.label.text = prayerItem.originalTime;
+                this._restorePrayerTimeTextLayout(prayerItem);
+                this._clearRemainingTimeStyle(prayerItem);
+                prayerItem.showingRemaining = false;
+                prayerItem.timeoutId = null;
+                return false;
+            });
+        }
+    }
+
+    _applyRemainingTimeTextLayout(prayerItem) {
+        prayerItem.label.set_style('min-width: 84px; text-align: center;');
+        prayerItem.label.x_align = Clutter.ActorAlign.CENTER;
+
+        if (this._isArabic())
+            prayerItem.timeBin.set_style('margin-right: 1px; margin-left: 0px; min-width: 84px; max-width: 84px;');
+        else
+            prayerItem.timeBin.set_style('margin-left: 1px; margin-right: 0px; min-width: 84px; max-width: 84px;');
+
+        prayerItem.timeBin.x_expand = false;
+    }
+
+    _restorePrayerTimeTextLayout(prayerItem) {
+        if (this._isArabic()) {
+            prayerItem.label.set_style('min-width: 84px; text-align: left;');
+            prayerItem.label.x_align = Clutter.ActorAlign.START;
+            prayerItem.timeBin.set_style('margin-right: 1px; margin-left: 0px; min-width: 84px; max-width: 84px;');
+            prayerItem.timeBin.x_expand = false;
+            return;
+        }
+
+        prayerItem.label.set_style('min-width: 84px; text-align: right;');
+        prayerItem.label.x_align = Clutter.ActorAlign.END;
+        prayerItem.timeBin.set_style('margin-left: 1px; margin-right: 0px; min-width: 84px;');
+        prayerItem.timeBin.x_expand = true;
+    }
+
+    _formatRemainingTimeLabel(remainingTime) {
+        // Arabic: word then time. English: prefix word then time.
+        if (this._isArabic())
+            return 'متبقي\u202F' + remainingTime;
+        return 'In ' + remainingTime;
+    }
+
+    _clearRemainingTimeStyle(prayerItem) {
+        prayerItem.label.remove_style_class_name('azan-remaining-time-green');
+        prayerItem.label.remove_style_class_name('azan-remaining-time-red');
+        prayerItem.timeCard.remove_style_class_name('azan-time-card-remaining-green');
+        prayerItem.timeCard.remove_style_class_name('azan-time-card-remaining-red');
+    }
+
+    _applyRemainingTimeColor(prayerItem) {
+        this._clearRemainingTimeStyle(prayerItem);
+
+        if (prayerItem.remainingMinutes < 30) {
+            prayerItem.label.add_style_class_name('azan-remaining-time-red');
+            prayerItem.timeCard.add_style_class_name('azan-time-card-remaining-red');
+        } else {
+            prayerItem.label.add_style_class_name('azan-remaining-time-green');
+            prayerItem.timeCard.add_style_class_name('azan-time-card-remaining-green');
+        }
+    }
+
+    _resetPrayerItemsDisplay() {
+        for (let prayerId in this._prayItems) {
+            let prayerItem = this._prayItems[prayerId];
+
+            if (prayerItem.timeoutId) {
+                Mainloop.source_remove(prayerItem.timeoutId);
+                prayerItem.timeoutId = null;
+            }
+
+            prayerItem.showingRemaining = false;
+            prayerItem.label.text = prayerItem.originalTime;
+            this._restorePrayerTimeTextLayout(prayerItem);
+            this._clearRemainingTimeStyle(prayerItem);
+        }
+    }
   
     stop() {
 
     	this.menu.removeAll();
 
-			if (this._periodicTimeoutId) {
+        // Clean up all prayer item click timeouts
+        for (let prayerId in this._prayItems) {
+            if (this._prayItems[prayerId].timeoutId) {
+                Mainloop.source_remove(this._prayItems[prayerId].timeoutId);
+                this._prayItems[prayerId].timeoutId = null;
+            }
+        }
+
+		if (this._periodicTimeoutId) {
         Mainloop.source_remove(this._periodicTimeoutId);
   		}
 		}
