@@ -87,3 +87,16 @@
   padding: 0px 2px;
   background-color: rgba(239, 68, 68, 0.1);
 }
+
+.azan-current-prayer-grey {
+  color: #f8fafc;
+  border: 1px solid rgba(100, 116, 139, 0.78);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background-color: rgba(71, 85, 105, 0.25);
+}
+
+.azan-current-prayer-grey:hover {
+  border-color: rgba(203, 213, 225, 0.92);
+  background-color: rgba(148, 163, 184, 0.36);
+}

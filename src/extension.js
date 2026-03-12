@@ -572,9 +572,26 @@ class Azan extends PanelMenu.Button {
           highlightedPrayerId = prayerOrder[prayerOrder.length - 1];
       }
 
-      let currentPrayerHighlightClass = minDiffMinutes < 30
-          ? 'azan-current-prayer-red'
-          : 'azan-current-prayer-green';
+      let currentPrayerHighlightClass;
+      if (highlightedPrayerId === 'fajr') {
+          // For Fajr, the prayer ends at sunrise — use remaining time until sunrise
+          let sunriseSeconds = this._calculateSecondsFromHour(timesFloat['sunrise']);
+          // After sunrise and before Dhuhr, Fajr should no longer appear active (grey).
+          if (nearestPrayerId === 'dhuhr' && currentSeconds >= sunriseSeconds) {
+              currentPrayerHighlightClass = 'azan-current-prayer-grey';
+          } else {
+              let sunriseDiffSeconds = sunriseSeconds - currentSeconds;
+              if (sunriseDiffSeconds <= 0) sunriseDiffSeconds += 24 * 60 * 60;
+              let sunriseDiffMinutes = ~~(sunriseDiffSeconds / 60);
+              currentPrayerHighlightClass = sunriseDiffMinutes <= 30
+                  ? 'azan-current-prayer-red'
+                  : 'azan-current-prayer-green';
+          }
+      } else {
+          currentPrayerHighlightClass = minDiffMinutes < 30
+              ? 'azan-current-prayer-red'
+              : 'azan-current-prayer-green';
+      }
 
       for (let prayerId in this._prayItems) {
           if (prayerId === highlightedPrayerId) {
