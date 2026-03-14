@@ -1,6 +1,6 @@
 {
   "description": "Azan is an Islamic prayer times extension for Gnome Shell",
-  "name": "Islamic Prayer Times",
+  "name": "Azan (Islamic Prayer Times)",
   "settings-schema": "org.gnome.shell.extensions.azan",
   "shell-version": [
     "3.36.1",
