@@ -97,6 +97,7 @@ class Azan extends PanelMenu.Button {
     };
 
     this._prayItems = {};
+    this._highlightedPrayerId = null;
 
     this._dateMenuItem = new PopupMenu.PopupMenuItem(_("TODO"), {
         style_class: 'azan-panel', reactive: false, hover: false, activate: false
@@ -197,6 +198,9 @@ class Azan extends PanelMenu.Button {
 
         // Handle click without closing popup menu.
         prayMenuItem.actor.connect('button-press-event', () => {
+            if (prayerId === this._highlightedPrayerId)
+                return Clutter.EVENT_STOP;
+
             this._togglePrayerItemDisplay(prayerId);
             return Clutter.EVENT_STOP;
         });
@@ -593,9 +597,11 @@ class Azan extends PanelMenu.Button {
               : 'azan-current-prayer-green';
       }
 
+      this._highlightedPrayerId = highlightedPrayerId;
+
       for (let prayerId in this._prayItems) {
           if (prayerId === highlightedPrayerId) {
-              this._prayItems[prayerId].menuItem.actor.style_class = currentPrayerHighlightClass + ' azan-clickable-item';
+              this._prayItems[prayerId].menuItem.actor.style_class = 'azan-prayer-item ' + currentPrayerHighlightClass;
           } else {
               this._prayItems[prayerId].menuItem.actor.style_class = 'azan-prayer-item azan-clickable-item';
           }
